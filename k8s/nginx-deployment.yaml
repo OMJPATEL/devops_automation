@@ -15,13 +15,13 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: ghcr.io/omjpatel/devops_automation-nginx:latest
+          image: nginx:alpine
           imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 80
           volumeMounts:
-            - name: nginx-conf
+            - name: nginx-config
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
           readinessProbe:
@@ -36,17 +36,10 @@ spec:
               port: http
             initialDelaySeconds: 20
             periodSeconds: 10
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
       volumes:
-        - name: nginx-conf
+        - name: nginx-config
           configMap:
-            name: nginx-conf
+            name: nginx-configmap
             items:
               - key: nginx.conf
                 path: nginx.conf
