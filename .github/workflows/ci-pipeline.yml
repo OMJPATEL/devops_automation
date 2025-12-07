@@ -1,0 +1,58 @@
+name: CI-CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.CR_PAT }}
+
+    - name: Build Backend Image
+      run: |
+        docker build -t ghcr.io/omjpatel/devops_automation-backend:${{ github.sha }} backend
+        docker push ghcr.io/omjpatel/devops_automation-backend:${{ github.sha }}
+
+    - name: Build Student Portfolio Image
+      run: |
+        docker build -t ghcr.io/omjpatel/devops_automation-studentportfolio:${{ github.sha }} studentportfolio
+        docker push ghcr.io/omjpatel/devops_automation-studentportfolio:${{ github.sha }}
+
+    - name: Build Transactions Image
+      run: |
+        docker build -t ghcr.io/omjpatel/devops_automation-transactions:${{ github.sha }} transactions
+        docker push ghcr.io/omjpatel/devops_automation-transactions:${{ github.sha }}
+
+    - name: Checkout GitOps Repo
+      uses: actions/checkout@v3
+      with:
+        repository: omjpatel/module_6_part3gitops
+        token: ${{ secrets.GITOPS_PAT }}
+        path: gitops
+
+    - name: Update Kubernetes Manifests With New Image Tags
+      run: |
+        sed -i "s|ghcr.io/omjpatel/devops_automation-backend:.*|ghcr.io/omjpatel/devops_automation-backend:${{ github.sha }}|g" gitops/k8s/backend-deployment.yaml
+        sed -i "s|ghcr.io/omjpatel/devops_automation-studentportfolio:.*|ghcr.io/omjpatel/devops_automation-studentportfolio:${{ github.sha }}|g" gitops/k8s/studentportfolio-deployment.yaml
+        sed -i "s|ghcr.io/omjpatel/devops_automation-transactions:.*|ghcr.io/omjpatel/devops_automation-transactions:${{ github.sha }}|g" gitops/k8s/transactions-deployment.yaml
+
+    - name: Commit and Push Changes
+      run: |
+        cd gitops
+        git config user.email "github-actions@github.com"
+        git config user.name "github-actions"
+        git add .
+        git commit -m "Update image tags to ${{ github.sha }}" || echo "No changes to commit"
+        git push
